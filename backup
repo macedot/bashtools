@@ -1,0 +1,59 @@
+#!/bin/bash
+
+if [ $# -eq 0 ]; then
+	echo "Use: `basename $0` <file|directory> <file|directory> ... <file|directory>"
+	echo "(Wildcards allowed)"
+	exit 0
+fi
+
+T=$(date +%Y%m%d%H%M%S)
+
+lastError=0
+RET=0
+for param in $*;
+do
+	for elem in $param;
+	do
+		INPUT="$elem"
+		OUTPUT=$INPUT.$T
+		if [ -e $INPUT ] ; then
+			if [ -f $INPUT ] ; then
+				cp -p $INPUT $OUTPUT
+				RET=$?
+				if [ $RET -ne 0 ]; then
+					echo "Error ($RET) : $INPUT -> $OUTPUT"
+					lastError=$RET
+				else
+					echo "Done : $INPUT -> $OUTPUT"
+				fi
+			fi
+
+			if [ -d $INPUT ] ; then
+				# Remove backslash at the end of the path, if exists.
+				OUTPUT=`dirname $INPUT`/`basename $INPUT`.$T
+				tar fcv $OUTPUT.tar "$INPUT"
+				RET=$?
+				if [ $RET -ne 0 ]; then
+					echo "Error ($RET) : $INPUT -> $OUTPUT"
+					lastError=$RET
+				else
+					echo "Done : $INPUT -> $OUTPUT.tar"
+					gzip $OUTPUT.tar
+					RET=$?
+					if [ $RET -ne 0 ]; then
+						echo "Error ($RET) : $INPUT -> $OUTPUT"
+						lastError=$RET
+					else
+						echo "Done : $OUTPUT.tar -> $OUTPUT.tar.gz"
+					fi
+				fi
+			fi
+		else
+			echo "Error - Not found: $INPUT"
+			lastError=999
+		fi
+	done;
+done;
+
+exit $lastError
+
